@@ -29,6 +29,10 @@ pip install -U praat-parselmouth
 
 For more detailed instructions, please refer to the [documentation](https://parselmouth.readthedocs.io/en/stable/installation.html).
 
+## Building from source
+
+For local development and source builds, see [`BUILD_FROM_SOURCE_LOCAL.md`](BUILD_FROM_SOURCE_LOCAL.md).
+
 ## Example usage
 ```Python
 import parselmouth

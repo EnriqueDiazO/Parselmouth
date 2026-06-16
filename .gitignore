@@ -2,6 +2,10 @@
 /build*/
 /dist/
 
+# Local build artifacts
+/_skbuild/
+*.egg-info/
+
 # Build folder of Sphinx
 /docs/_build
 
