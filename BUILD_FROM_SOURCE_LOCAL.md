@@ -1,12 +1,26 @@
-# Building Parselmouth / Praat from source locally
+# Building and installing Parselmouth locally
 
-This guide documents how to install, build, and verify this Parselmouth fork
-from source. It is intended for local development and reproducible source
-builds, not for committing build artifacts.
+This document separates four different workflows. Do not treat them as one
+long installation procedure.
 
-## 1. Normal installation from PyPI
+The central distinction is this: installing Parselmouth is not the same thing
+as manually compiling and locating the native `.so` file. For normal use,
+install from PyPI. For local work on this fork, build and install the package
+with `pip`. Manual `.so` inspection belongs to debugging and historical
+experiments, not to the recommended installation path.
 
-For normal usage, install the published Python package from PyPI:
+## Quick decision guide
+
+| Goal | Recommended workflow |
+|---|---|
+| Use Parselmouth as a normal Python package | Install from PyPI |
+| Test this fork locally | Local source build with pip |
+| Debug CMake/native build internals | CMake development build |
+| Understand Enrique's previous `.so` experiment | Historical manual `.so` experiment |
+
+## 1. Normal user installation
+
+Use this path if you only want to use Parselmouth as a Python package.
 
 ```bash
 python -m pip install praat-parselmouth
@@ -15,7 +29,7 @@ python -m pip install praat-parselmouth
 The installable package name is `praat-parselmouth`. The importable Python
 module name is `parselmouth`.
 
-Validate the installed package with:
+Validate the installation with:
 
 ```bash
 python - <<'PY'
@@ -26,31 +40,18 @@ print("Praat version:", parselmouth.PRAAT_VERSION)
 PY
 ```
 
-Use a source build only when you need to test local code, work from a fork, or
-debug the C/C++ integration with Praat.
+This path does not require cloning the repository, running CMake, initializing
+submodules, or manually generating any `.so` file.
 
-## 2. Source-build overview
+## 2. Local source build from this fork
 
-Parselmouth is a Python extension module built from C/C++ sources. A source
-build combines several layers:
+Use this path when working from Enrique's fork and installing the package
+locally from source. This is the recommended source-build workflow.
 
-- Python packaging with `pip`, `setuptools`, and `scikit-build`.
-- Native configuration and compilation with CMake.
-- The embedded Praat source tree.
-- The pybind11 binding layer that exposes Praat functionality to Python.
-- Required source dependencies such as `extern/fmt`.
+The build should install Parselmouth into the active Python environment. Do not
+move the compiled `.so` manually.
 
-The most common local build command is:
-
-```bash
-python -m pip install -v .
-```
-
-From the repository root, this asks `pip` to build the package declared by
-`pyproject.toml`. The build backend invokes `scikit-build`, and `scikit-build`
-drives CMake.
-
-## 3. Working from a fork
+### 2.1 Fork remotes
 
 This checkout is configured as a fork of the original Parselmouth repository:
 
@@ -61,13 +62,12 @@ upstream = https://github.com/YannickJadoul/Parselmouth.git
 
 In this setup:
 
-- `origin` is the personal fork.
+- `origin` is Enrique's fork.
 - `upstream` is the original Parselmouth repository.
-- Push local fork work to `origin`.
+- Push fork work to `origin`.
 - Do not push to `upstream`.
-- Keep required source directories and submodules complete in the fork.
 
-Check the configured remotes with:
+Check remotes with:
 
 ```bash
 git remote -v
@@ -82,30 +82,11 @@ git merge upstream/master
 git submodule update --init --recursive
 ```
 
-If another fork uses `main` instead of `master`, replace `master` with `main`
-in the commands above.
+If another fork uses `main` instead of `master`, replace `master` with `main`.
 
-## 4. Requirements
+### 2.2 System requirements
 
-For local builds, use:
-
-- Python `>=3.9`.
-- NumPy.
-- setuptools.
-- scikit-build.
-- CMake.
-- A C/C++ compiler.
-- Python headers.
-- git.
-- Complete required source directories and submodules.
-- pytest for tests.
-
-The repository already includes `pybind11`, so it is normally not necessary to
-install `pybind11` with `pip` to compile Parselmouth.
-
-## 5. Recommended Ubuntu setup
-
-Install the main system packages:
+Recommended Ubuntu packages:
 
 ```bash
 sudo apt update
@@ -135,9 +116,13 @@ if a local build complains about missing audio, X11, or FFTW headers. Yannick
 indicated that `libfftw3-dev` was probably not necessary, and recent versions
 should be independent of X11.
 
-## 6. Creating a Python environment
+For Python packaging, the source build uses Python `>=3.9`, NumPy,
+setuptools, scikit-build, CMake, a C/C++ compiler, Python headers, git, and
+complete required source directories.
 
-Using `venv`:
+### 2.3 Python environment
+
+Create and activate a local virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -145,31 +130,9 @@ source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 ```
 
-Optional `pyenv` workflow:
+### 2.4 Submodules
 
-```bash
-pyenv install 3.10.14
-pyenv virtualenv 3.10.14 parselmouth-dev-3.10
-pyenv activate parselmouth-dev-3.10
-python -m pip install --upgrade pip setuptools wheel
-```
-
-Install test requirements when you plan to run the test suite:
-
-```bash
-python -m pip install -r tests/requirements.txt
-```
-
-## 7. Getting the source code
-
-### Original repository
-
-```bash
-git clone --recursive https://github.com/YannickJadoul/Parselmouth.git
-cd Parselmouth
-```
-
-### Fork
+Prefer cloning with submodules:
 
 ```bash
 git clone --recursive git@github.com:<your-user>/Parselmouth.git
@@ -180,19 +143,13 @@ git remote add upstream https://github.com/YannickJadoul/Parselmouth.git
 A GitHub ZIP downloaded from a fork may not include full submodule contents.
 For source builds, prefer `git clone --recursive` over downloading a ZIP.
 
-## 8. Submodules
-
-Initialize and update submodules after cloning, after switching branches, and
-after merging changes from `upstream`:
+If the repository is already cloned, initialize or refresh submodules:
 
 ```bash
 git submodule update --init --recursive
-git submodule status
 ```
 
-In this checkout, `extern/fmt` is declared as a Git submodule. The `pybind11`
-and `praat` directories are also required source directories for the build, so
-verify all three before building:
+Verify the required source directories:
 
 ```bash
 test -f extern/fmt/CMakeLists.txt && echo "fmt OK" || echo "fmt missing"
@@ -200,140 +157,163 @@ test -f pybind11/CMakeLists.txt && echo "pybind11 OK" || echo "pybind11 missing"
 test -f praat/CMakeLists.txt && echo "Praat OK" || echo "Praat missing"
 ```
 
-If any required directory is missing or incomplete, run:
+In this checkout, `extern/fmt` is declared as a Git submodule. The `pybind11`
+and `praat` directories are also required source directories for the build.
+
+### 2.5 Build and install with pip
+
+From the repository root, with `.venv` activated:
 
 ```bash
-git submodule update --init --recursive
-```
-
-If a directory is still missing after that, reclone with `--recursive` or check
-that the fork contains the expected source tree.
-
-## 9. Installing from source with pip
-
-From the repository root, with the desired Python environment activated:
-
-```bash
-python -m pip install --upgrade pip setuptools wheel
 python -m pip install -v .
 ```
 
-Then validate the installed extension:
+This is the recommended local source installation command. It lets `pip`,
+setuptools, scikit-build, and CMake build the native extension and install it
+into the active Python environment.
 
-```bash
-python - <<'PY'
-import parselmouth
-print(parselmouth.__file__)
-print(parselmouth.VERSION)
-print(parselmouth.PRAAT_VERSION)
-PY
-```
-
-Do not move the compiled `.so` manually as the normal installation method. Let
-`pip` install the extension into the active Python environment. Manually
-inspecting or copying the extension should be treated only as advanced
-diagnostics.
-
-An optional helper script is available for Ubuntu-style local builds:
+The helper script runs this path without installing system packages:
 
 ```bash
 chmod +x scripts/local_build_ubuntu.sh
 ./scripts/local_build_ubuntu.sh
 ```
 
-The script does not install system packages. It checks the repository root,
-checks the required source directories, creates `.venv` if needed, builds with
-`pip`, and validates `import parselmouth`.
+### 2.6 Verify the local installation
 
-## 10. Building and testing with CMake
-
-Use `pip` when you want a normal Python package installation:
+Use `PYTHONNOUSERSITE=1` so the check cannot accidentally pass by importing an
+older package from `~/.local`:
 
 ```bash
-python -m pip install -v .
+PYTHONNOUSERSITE=1 python - <<'PY'
+import sys
+import parselmouth
+
+print("Python:", sys.executable)
+print("parselmouth file:", parselmouth.__file__)
+print("Parselmouth version:", parselmouth.VERSION)
+print("Praat version:", parselmouth.PRAAT_VERSION)
+PY
 ```
 
-Use CMake directly when you want a development or debug build and access to
-CMake targets:
+In Enrique's local test, the source build installed Parselmouth into:
+
+```text
+.venv/lib/python3.10/site-packages/parselmouth.cpython-310-x86_64-linux-gnu.so
+
+Parselmouth: 0.5.0.dev0
+Praat: 6.4.16
+```
+
+That result is a valid local installation because the imported module came
+from `.venv`, not from `~/.local`.
+
+## 3. Development build with CMake
+
+Use this when developing or debugging the native build, not as the normal user
+installation path.
+
+Install test dependencies in the active environment:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r tests/requirements.txt
+```
+
+Configure a Debug build:
 
 ```bash
 cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Debug \
   -DPython_EXECUTABLE="$(which python)"
+```
 
+Build the extension and run the CMake `pytest` target:
+
+```bash
 cmake --build build --target pytest -j "$(nproc)"
 ```
 
-The first command configures a Debug build in `build/`. The second command
-builds the extension and runs the CMake `pytest` target. The test target sets
-`PYTHONPATH` to the compiled extension directory before running pytest.
+This produces a development build under `build/` and uses the compiled
+extension when running tests. It is useful for CMake targets, native debugging,
+and test iteration. It is separate from the normal user installation path and
+from the recommended source installation with `pip`.
 
-If pytest is not installed in the active environment, install the test
-requirements first:
-
-```bash
-python -m pip install -r tests/requirements.txt
-```
-
-## 11. Finding the compiled extension
-
-Search for compiled extension files with:
-
-```bash
-find . -name "parselmouth*.so" -o -name "parselmouth*.pyd"
-```
-
-Typical locations include:
+In Enrique's local test:
 
 ```text
-src/parselmouth*.so
-_skbuild/*/cmake-build/src/parselmouth*.so
-_skbuild/*/cmake-install/src/parselmouth*.so
-build/src/parselmouth*.so
+cmake configuration succeeded.
+cmake --build build --target pytest -j "$(nproc)" succeeded.
+pytest result: 69 passed in 1.25s.
 ```
 
-Linux uses `.so` extension modules. Windows uses `.pyd` extension modules.
+## 4. Historical manual `.so` experiment
 
-## 12. Verifying the installation
+The previous `Parselv2.zip` experiment was useful because it confirmed that
+Enrique could compile Parselmouth locally and produce a native Python extension
+file (`.so`) from the repository's embedded Praat source tree.
 
-Use this smoke test in the same Python environment that performed the build:
+However, this was not a general mechanism for compiling Parselmouth against an
+arbitrary external Praat version. At that stage, the build used the Praat
+version already included in the Parselmouth repository.
+
+Manual movement of the `.so` file should be treated as historical debugging,
+not as the recommended installation method. The recommended source-build path
+is:
 
 ```bash
-python - <<'PY'
-import parselmouth
-import numpy as np
-
-print("Module:", parselmouth)
-print("File:", parselmouth.__file__)
-print("Parselmouth:", parselmouth.VERSION)
-print("Praat:", parselmouth.PRAAT_VERSION)
-
-snd = parselmouth.Sound(np.zeros(16000), sampling_frequency=16000)
-print("Sound duration:", snd.duration)
-PY
+python -m pip install -v .
 ```
 
-The reported file should point to the active environment or to the expected
-local build output. If it points to a different Python installation, check
-`which python` and `python -m pip --version`.
+Observed `.so` locations during local source and CMake builds included:
 
-## 13. Cleaning build artifacts
+```text
+_skbuild/linux-x86_64-3.10/cmake-build/src/parselmouth.cpython-310-x86_64-linux-gnu.so
+_skbuild/linux-x86_64-3.10/cmake-install/src/parselmouth.cpython-310-x86_64-linux-gnu.so
+_skbuild/linux-x86_64-3.10/setuptools/lib.linux-x86_64-cpython-310/parselmouth.cpython-310-x86_64-linux-gnu.so
+build/src/parselmouth.cpython-310-x86_64-linux-gnu.so
+.venv/lib/python3.10/site-packages/parselmouth.cpython-310-x86_64-linux-gnu.so
+```
 
-From the repository root only, remove local build artifacts with:
+These paths are useful for diagnosis and verification. They do not imply that
+the user should manually copy the extension module as the installation method.
+
+Local build outputs such as `_skbuild/`, `build/`, `.so` files, `.egg-info`
+metadata, and `.venv/` are artifacts. They should not be committed to the
+repository.
+
+## 5. Cleaning generated files
+
+Remove generated build artifacts from the repository root:
 
 ```bash
-rm -rf build _skbuild dist *.egg-info src/*.egg-info
+rm -rf build _skbuild dist *.egg-info src/*.egg-info .pytest_cache
 ```
 
-Run this command only from the root of the Parselmouth repository. Do not remove
-source directories such as `extern/`, `pybind11/`, `praat/`, `src/`, or `tests/`.
+This keeps `.venv` by default. To remove the local Python environment too:
 
-## 14. Common errors
+```bash
+rm -rf .venv
+```
+
+Only run these commands from the repository root. Do not remove source
+directories such as `extern/`, `pybind11/`, `praat/`, `src/`, or `tests/`.
+
+## 6. Troubleshooting
+
+Troubleshooting belongs here, not in the main workflow. Use these notes when a
+specific symptom appears.
 
 ### `extern/fmt` missing
 
 ```bash
 git submodule update --init --recursive
+```
+
+Then verify:
+
+```bash
+test -f extern/fmt/CMakeLists.txt && echo "fmt OK" || echo "fmt missing"
 ```
 
 ### `cmake: command not found`
@@ -350,13 +330,17 @@ sudo apt install python3-dev
 
 ### `No module named skbuild`
 
+Usually `pip` installs build requirements from `pyproject.toml` automatically.
+If you are debugging packaging manually, install scikit-build in the active
+environment:
+
 ```bash
 python -m pip install "scikit-build>=0.13"
 ```
 
 ### `No module named parselmouth`
 
-Verify the active Python environment:
+Check that the expected Python and pip are active:
 
 ```bash
 which python
@@ -364,41 +348,51 @@ python -m pip --version
 python -m pip show praat-parselmouth
 ```
 
-If the package is missing, install it again from the repository root:
+If the package is missing, build and install it from the repository root:
 
 ```bash
 python -m pip install -v .
 ```
+
+### Import points to `~/.local`
+
+If `parselmouth.__file__` points to a user-site installation under `~/.local`,
+the check is not validating this repository's local build. Disable user-site
+packages while testing:
+
+```bash
+PYTHONNOUSERSITE=1 python - <<'PY'
+import parselmouth
+print(parselmouth.__file__)
+PY
+```
+
+The path should point to `.venv`, `_skbuild`, `build`, or another intentional
+local build/install location, not to `~/.local`.
 
 ### Build fails after previous attempts
 
+Clean generated files and build again:
+
 ```bash
-rm -rf build _skbuild dist *.egg-info src/*.egg-info
+rm -rf build _skbuild dist *.egg-info src/*.egg-info .pytest_cache
 python -m pip install -v .
 ```
 
-## 15. Notes from the previous Parselv2 experiment
-
-`Parselv2.zip` is evidence of a previous successful local build experiment.
-Treat it as historical evidence, not as source code that should be committed.
-
-The compressed virtual environment `parsel2-env/` from that experiment is not
-portable. Virtual environments contain absolute paths, interpreter-specific
-files, installed binaries, and machine-local assumptions.
-
-Build outputs such as `_skbuild/`, `build/`, `.so` files, `*.egg-info`
-metadata, and virtual environments should not be committed to this repository.
-The reliable workflow is to rebuild cleanly on each machine from the
-repository, the required source directories, the Python environment, and the
-documented build commands.
-
-## 16. Technical interpretation
+## 7. Technical interpretation
 
 Parselmouth does not primarily call Praat through `subprocess`. It embeds Praat
-as C/C++ code and exposes that code to Python with pybind11. That is why a
-source build requires a compiler, CMake, Python headers, NumPy, scikit-build,
+as C/C++ code and exposes that code to Python with pybind11. That is why local
+source builds require a compiler, CMake, Python headers, NumPy, scikit-build,
 and complete required source directories.
+
+The repository already includes `pybind11`, so it is normally not necessary to
+install `pybind11` with `pip` to compile Parselmouth.
 
 This architecture gives Parselmouth efficient access to Praat algorithms and
 internal structures, but it makes compilation and distribution more complex
 than for a pure Python package.
+
+The earlier manual `.so` work confirmed that the repository can produce the
+native extension from its embedded Praat tree. It did not solve the separate
+problem of building Parselmouth against any arbitrary external Praat version.

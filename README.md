@@ -29,9 +29,10 @@ pip install -U praat-parselmouth
 
 For more detailed instructions, please refer to the [documentation](https://parselmouth.readthedocs.io/en/stable/installation.html).
 
-## Building from source
+## Building and installing locally
 
-For local development and source builds, see [`BUILD_FROM_SOURCE_LOCAL.md`](BUILD_FROM_SOURCE_LOCAL.md).
+For the difference between normal PyPI installation, local source builds, CMake development builds, and Enrique's historical `.so` experiment, see
+[`BUILD_FROM_SOURCE_LOCAL.md`](BUILD_FROM_SOURCE_LOCAL.md).
 
 ## Example usage
 ```Python
